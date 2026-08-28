@@ -1,4 +1,4 @@
-# Secure File Handling & Sharing System (AAA+ Architecture)
+# 🛡️Secure File Handling & Sharing System (AAA+ Architecture)
 
 ## Overview
 
