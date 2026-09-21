@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { File as FileIcon, Share2, Clock } from 'lucide-react';
+import { File as FileIcon, Share2, Clock, Shield } from 'lucide-react';
 import api from '../services/api';
 import ShareModal from './ShareModal';
 
@@ -23,48 +23,53 @@ const FileList = () => {
     }
   };
 
-  if (loading) return <div className="text-textMuted">Loading vault...</div>;
+  if (loading) return <div className="text-sm text-textMuted">Reading storage index...</div>;
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Your Encrypted Vault</h2>
+    <div className="space-y-4">
+      <div className="flex justify-between items-center pb-2 border-b border-border">
+        <h2 className="text-sm font-display font-semibold text-textMain flex items-center gap-2">
+          <Shield className="w-4 h-4 text-primary" /> Stored Files
+        </h2>
+        <span className="text-xs text-textMuted">{files.length} object{files.length === 1 ? '' : 's'} encrypted</span>
       </div>
 
       {files.length === 0 ? (
-        <div className="bg-surface p-8 rounded-xl border border-gray-800 text-center text-textMuted">
-          No files stored securely yet.
+        <div className="bg-surface p-6 rounded-md border border-border text-center text-sm text-textMuted">
+          No files stored in your vault yet.
         </div>
       ) : (
-        <div className="bg-surface rounded-xl border border-gray-800 overflow-hidden">
-          <table className="w-full text-left">
-            <thead className="bg-gray-800 text-textMuted text-sm">
+        <div className="bg-surface rounded-md border border-border overflow-hidden">
+          <table className="w-full text-left text-sm">
+            <thead className="text-textMuted border-b border-border text-xs">
               <tr>
-                <th className="px-6 py-4 font-medium">File Name</th>
-                <th className="px-6 py-4 font-medium">Size</th>
-                <th className="px-6 py-4 font-medium">Uploaded</th>
-                <th className="px-6 py-4 font-medium text-right">Actions</th>
+                <th className="px-4 py-2.5 font-medium">File</th>
+                <th className="px-4 py-2.5 font-medium">Size</th>
+                <th className="px-4 py-2.5 font-medium">Encrypted at</th>
+                <th className="px-4 py-2.5 font-medium text-right">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-800">
+            <tbody className="divide-y divide-border">
               {files.map((f) => (
-                <tr key={f.id} className="hover:bg-gray-800/50 transition-colors">
-                  <td className="px-6 py-4 flex items-center gap-3">
-                    <FileIcon className="w-5 h-5 text-primary" />
-                    <span className="font-medium">{f.originalName}</span>
+                <tr key={f.id} className="hover:bg-surface-hover transition-colors">
+                  <td className="px-4 py-3 flex items-center gap-2 text-textMain">
+                    <FileIcon className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                    <span className="truncate">{f.originalName}</span>
                   </td>
-                  <td className="px-6 py-4 text-sm text-textMuted">
+                  <td className="px-4 py-3 text-textMuted whitespace-nowrap">
                     {(f.size / 1024 / 1024).toFixed(2)} MB
                   </td>
-                  <td className="px-6 py-4 text-sm text-textMuted flex items-center gap-2">
-                    <Clock className="w-4 h-4" /> {new Date(f.createdAt).toLocaleDateString()}
+                  <td className="px-4 py-3 text-textMuted whitespace-nowrap">
+                    <span className="flex items-center gap-1">
+                      <Clock className="w-3 h-3" /> {new Date(f.createdAt).toLocaleDateString()}
+                    </span>
                   </td>
-                  <td className="px-6 py-4 text-right">
+                  <td className="px-4 py-3 text-right whitespace-nowrap">
                     <button
                       onClick={() => setShareFileId(f.id)}
-                      className="text-primary hover:text-primaryDark flex items-center gap-1 ml-auto text-sm font-medium"
+                      className="text-primary hover:text-primary-soft flex items-center gap-1 ml-auto text-sm transition-colors"
                     >
-                      <Share2 className="w-4 h-4" /> Share
+                      <Share2 className="w-3.5 h-3.5" /> Grant access
                     </button>
                   </td>
                 </tr>
@@ -75,9 +80,9 @@ const FileList = () => {
       )}
 
       {shareFileId && (
-        <ShareModal 
-          fileId={shareFileId} 
-          onClose={() => setShareFileId(null)} 
+        <ShareModal
+          fileId={shareFileId}
+          onClose={() => setShareFileId(null)}
         />
       )}
     </div>

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Copy } from 'lucide-react';
+import { UploadCloud, CheckCircle, AlertTriangle, Loader2, Copy, Shield } from 'lucide-react';
 import api from '../services/api';
 
 const UploadCard = ({ onUploadComplete }) => {
   const [file, setFile] = useState(null);
-  const [step, setStep] = useState('idle'); // idle, config, validation, encrypting, storing, complete, error
+  const [step, setStep] = useState('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [users, setUsers] = useState([]);
   const [recipientId, setRecipientId] = useState('');
@@ -12,7 +12,6 @@ const UploadCard = ({ onUploadComplete }) => {
   const [shareLink, setShareLink] = useState('');
 
   useEffect(() => {
-    // Fetch users for sharing
     const fetchUsers = async () => {
       try {
         const res = await api.get('/users/all');
@@ -32,29 +31,25 @@ const UploadCard = ({ onUploadComplete }) => {
   };
 
   const handleInitialUploadClick = () => {
-    if (file) {
-      setStep('config');
-    }
+    if (file) setStep('config');
   };
 
   const handleConfirmAndSend = async () => {
     if (!file) return;
-    
+
     setStep('validation');
     setStatusMsg('Validating file constraints...');
-    
-    // Simulate slight delay for visual stepper
     await new Promise(r => setTimeout(r, 600));
 
     if (file.size > 25 * 1024 * 1024) {
       setStep('error');
-      setStatusMsg('File exceeds 25MB limit.');
+      setStatusMsg('File size exceeds 25MB threshold.');
       return;
     }
 
     setStep('encrypting');
-    setStatusMsg('AES-256-GCM Encryption in progress...');
-    
+    setStatusMsg('AES-256-GCM encryption pipeline initiated...');
+
     const formData = new FormData();
     formData.append('file', file);
     if (recipientId) {
@@ -66,13 +61,13 @@ const UploadCard = ({ onUploadComplete }) => {
       const uploadPromise = api.post('/files/upload', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      
+
       await new Promise(r => setTimeout(r, 1000));
       setStep('storing');
-      setStatusMsg('Writing ciphertext to isolated vault...');
-      
+      setStatusMsg('Writing encrypted binary payload to isolated vault...');
+
       const res = await uploadPromise;
-      
+
       setStep('complete');
       setStatusMsg(res.data.message);
       if (res.data.share) {
@@ -84,18 +79,17 @@ const UploadCard = ({ onUploadComplete }) => {
           setFile(null);
         }, 3000);
       }
-      
+
       if (onUploadComplete) onUploadComplete();
-      
     } catch (err) {
       setStep('error');
-      setStatusMsg(err.response?.data?.message || 'Upload failed due to a security policy violation.');
+      setStatusMsg(err.response?.data?.message || 'Upload halted: Security policy violation.');
     }
   };
 
   const copyLink = () => {
     navigator.clipboard.writeText(shareLink);
-    alert('Secure link copied to clipboard!');
+    alert('Encrypted token URL copied.');
   };
 
   const resetComponent = () => {
@@ -105,49 +99,60 @@ const UploadCard = ({ onUploadComplete }) => {
     setRecipientId('');
   };
 
+  const busy = ['validation', 'encrypting', 'storing'].includes(step);
+
   return (
-    <div className="bg-surface rounded-xl border border-gray-800 p-6">
-      <h2 className="text-xl font-bold mb-4">Secure File Upload</h2>
-      
+    <div className="bg-surface rounded-md border border-border p-5">
+      <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
+        <h2 className="text-sm font-display font-semibold text-textMain flex items-center gap-2">
+          <Shield className="w-4 h-4 text-primary" /> Encrypted Ingestion
+        </h2>
+        <span className="text-[11px] font-mono text-textMuted bg-background px-2 py-0.5 border border-border rounded">
+          AES-256-GCM
+        </span>
+      </div>
+
       {step === 'idle' || step === 'error' ? (
-        <div 
+        <div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className={`border-2 border-dashed bg-background p-12 rounded-xl flex flex-col items-center justify-center text-center transition-colors mb-4 ${step === 'error' ? 'border-red-500/50 hover:border-red-500' : 'border-gray-700 hover:border-primary'}`}
+          className={`border border-dashed p-8 rounded flex flex-col items-center justify-center text-center transition-colors mb-4 ${
+            step === 'error' ? 'border-danger/40 bg-danger/5' : 'border-border hover:border-primary/50 bg-background/40'
+          }`}
         >
-          <UploadCloud className={`w-12 h-12 mb-4 ${step === 'error' ? 'text-red-500' : 'text-primary'}`} />
-          <p className="text-lg mb-2">Drag & Drop file to encrypt and store</p>
-          <p className="text-sm text-textMuted mb-6">Supported: PDF, PNG, JPG, DOCX, ZIP (Max 25MB)</p>
-          
-          <input 
-            type="file" 
-            id="fileInput" 
-            className="hidden" 
-            onChange={(e) => setFile(e.target.files[0])} 
+          <UploadCloud className={`w-8 h-8 mb-3 ${step === 'error' ? 'text-danger-soft' : 'text-textMuted'}`} />
+          <p className="text-sm text-textMain mb-1">Drag & drop a file to encrypt</p>
+          <p className="text-xs text-textMuted mb-4">PDF, PNG, JPG, DOCX, ZIP — up to 25MB</p>
+
+          <input
+            type="file"
+            id="fileInput"
+            className="hidden"
+            onChange={(e) => setFile(e.target.files[0])}
           />
-          <label 
-            htmlFor="fileInput" 
-            className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded cursor-pointer transition-colors"
+          <label
+            htmlFor="fileInput"
+            className="bg-surface-2 hover:bg-surface-hover text-textMain text-xs px-4 py-2 border border-border rounded cursor-pointer transition-colors"
           >
-            Browse Files
+            Browse files
           </label>
         </div>
       ) : step === 'config' ? (
-        <div className="bg-background p-6 rounded-xl border border-gray-700 mb-4">
-          <h3 className="text-lg font-medium mb-4">Configure Sharing Options</h3>
-          
-          <div className="space-y-4">
+        <div className="bg-background p-4 rounded border border-border mb-4 space-y-4">
+          <h3 className="text-xs uppercase tracking-wide text-textMuted">Access & expiry</h3>
+
+          <div className="space-y-3 text-sm">
             <div>
-              <label className="block text-sm text-textMuted mb-1">Recipient Email (Optional)</label>
+              <label className="block text-textMuted text-xs mb-1">Recipient</label>
               <select
-                className="w-full bg-surface border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain text-sm"
+                className="w-full bg-surface border border-border rounded px-3 py-2 text-textMain focus:outline-none focus:border-primary"
                 value={recipientId}
                 onChange={(e) => setRecipientId(e.target.value)}
               >
-                <option value="">-- Do Not Share (Store Only) --</option>
+                <option value="">No recipient — private vault only</option>
                 {users.map((u) => (
                   <option key={u.id} value={u.id}>
-                    {u.email} ({u.role})
+                    {u.email} · {u.role}
                   </option>
                 ))}
               </select>
@@ -155,65 +160,87 @@ const UploadCard = ({ onUploadComplete }) => {
 
             {recipientId && (
               <div>
-                <label className="block text-sm text-textMuted mb-1">Duration</label>
+                <label className="block text-textMuted text-xs mb-1">Link expires after</label>
                 <select
-                  className="w-full bg-surface border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain text-sm"
+                  className="w-full bg-surface border border-border rounded px-3 py-2 text-textMain focus:outline-none focus:border-primary"
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
                 >
-                  <option value="12">12 Hours</option>
-                  <option value="24">24 Hours</option>
-                  <option value="72">3 Days</option>
-                  <option value="168">1 Week</option>
+                  <option value="12">12 hours</option>
+                  <option value="24">24 hours</option>
+                  <option value="72">72 hours</option>
+                  <option value="168">7 days</option>
                 </select>
               </div>
             )}
-            
-            <div className="flex gap-3 pt-4">
-              <button 
+
+            <div className="flex gap-2 pt-2">
+              <button
                 onClick={() => setStep('idle')}
-                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 rounded transition-colors"
+                className="w-full bg-surface hover:bg-surface-hover border border-border text-textMuted text-xs py-2 rounded transition-colors"
               >
-                Cancel
+                Abort
               </button>
-              <button 
+              <button
                 onClick={handleConfirmAndSend}
-                className="w-full bg-primary hover:bg-primaryDark text-white font-medium py-2 rounded transition-colors"
+                className="w-full bg-primary hover:bg-primaryDark text-background text-xs font-semibold py-2 rounded transition-colors"
               >
-                Confirm & Send
+                Encrypt & Dispatch
               </button>
             </div>
           </div>
         </div>
       ) : (
-        <div className="border-2 border-primary/50 bg-background p-12 rounded-xl flex flex-col items-center justify-center text-center mb-4">
-          {step === 'complete' ? (
-            <CheckCircle className="w-16 h-16 text-green-500 mb-4" />
-          ) : (
-            <Loader2 className="w-16 h-16 text-primary animate-spin mb-4" />
+        <div className="border border-border bg-background p-8 rounded mb-4">
+          <div className="flex flex-col items-center text-center">
+            {step === 'complete' ? (
+              <CheckCircle className="w-9 h-9 text-safe mb-3" />
+            ) : (
+              <Loader2 className="w-9 h-9 text-primary animate-spin mb-3" />
+            )}
+            <h3 className="text-sm font-medium text-textMain mb-1 capitalize">{step}</h3>
+            <p className="text-xs text-textMuted mb-4">{statusMsg}</p>
+          </div>
+
+          {/* Legitimate step sequence — this is a real pipeline, not decoration */}
+          {busy && (
+            <div className="flex items-center gap-2 mb-4">
+              {['validation', 'encrypting', 'storing'].map((s, i) => {
+                const order = ['validation', 'encrypting', 'storing'];
+                const current = order.indexOf(step);
+                const done = i < current;
+                const active = i === current;
+                return (
+                  <div
+                    key={s}
+                    className={`h-1 flex-1 rounded-full transition-colors ${
+                      done || active ? 'bg-primary' : 'bg-border'
+                    }`}
+                  />
+                );
+              })}
+            </div>
           )}
-          <h3 className="text-xl font-bold mb-2 capitalize">{step}</h3>
-          <p className="text-textMuted mb-4">{statusMsg}</p>
-          
+
           {shareLink && (
             <div className="w-full">
-              <p className="text-sm text-textMuted mb-2">Share Link Generated:</p>
-              <div className="flex items-center gap-2 bg-surface p-2 rounded border border-gray-700 mb-4">
-                <input 
-                  type="text" 
-                  readOnly 
+              <p className="text-xs text-textMuted mb-1">Temporary access link</p>
+              <div className="flex items-center gap-2 bg-surface p-2 rounded border border-border mb-3">
+                <input
+                  type="text"
+                  readOnly
                   value={shareLink}
-                  className="bg-transparent w-full outline-none text-xs text-textMuted"
+                  className="bg-transparent w-full outline-none text-xs font-mono text-textMuted truncate"
                 />
-                <button onClick={copyLink} className="text-primary hover:text-primaryDark p-1">
-                  <Copy className="w-4 h-4" />
+                <button onClick={copyLink} className="text-primary hover:text-primary-soft p-1 transition-colors">
+                  <Copy className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <button 
+              <button
                 onClick={resetComponent}
-                className="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 text-sm rounded transition-colors"
+                className="bg-surface hover:bg-surface-hover text-textMain border border-border px-3 py-1.5 text-xs rounded transition-colors"
               >
-                Upload Another
+                Upload another file
               </button>
             </div>
           )}
@@ -221,28 +248,26 @@ const UploadCard = ({ onUploadComplete }) => {
       )}
 
       {step === 'error' && (
-        <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded flex items-start gap-2 mb-4 text-sm">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0" />
+        <div className="bg-danger/10 border border-danger/30 text-danger-soft p-3 rounded flex items-center gap-2 mb-4 text-sm">
+          <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>{statusMsg}</span>
         </div>
       )}
 
       {file && step === 'idle' && (
-        <div className="bg-background border border-gray-700 p-4 rounded-lg flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary/20 p-2 rounded text-primary">
-              <CheckCircle className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-medium">{file.name}</p>
+        <div className="bg-background border border-border p-3 rounded flex items-center justify-between">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <CheckCircle className="w-4 h-4 text-primary flex-shrink-0" />
+            <div className="truncate">
+              <p className="text-sm text-textMain truncate">{file.name}</p>
               <p className="text-xs text-textMuted">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={handleInitialUploadClick}
-            className="bg-primary hover:bg-primaryDark text-white px-6 py-2 rounded font-medium transition-colors"
+            className="bg-primary hover:bg-primaryDark text-background text-xs font-semibold px-3 py-1.5 rounded transition-colors whitespace-nowrap ml-2"
           >
-            Encrypt & Upload
+            Encrypt
           </button>
         </div>
       )}

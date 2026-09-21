@@ -19,7 +19,7 @@ const App = () => {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/share/:shareId/:token" element={<DownloadLandingPage />} />
-          
+
           <Route path="/*" element={
             <PrivateRoute>
               <DashboardPage />

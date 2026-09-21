@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Link as LinkIcon, CheckCircle, Copy } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Link as LinkIcon, CheckCircle, Copy, Mail } from 'lucide-react';
 import api from '../services/api';
 
 const ShareModal = ({ fileId, onClose }) => {
@@ -12,11 +12,10 @@ const ShareModal = ({ fileId, onClose }) => {
   const [loadingProfs, setLoadingProfs] = useState(true);
   const [manualRecipientId, setManualRecipientId] = useState('');
 
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchProfessors = async () => {
       try {
         const res = await api.get('/users/professors');
-        console.log('[FRONTEND DEBUG] Fetched professors response:', res.data);
         setProfessors(res.data);
         if (res.data.length > 0) {
           setRecipientId(res.data[0].id);
@@ -37,7 +36,7 @@ const ShareModal = ({ fileId, onClose }) => {
 
     setLoading(true);
     setError('');
-    
+
     try {
       const res = await api.post('/shares/create', {
         file_id: fileId,
@@ -46,7 +45,7 @@ const ShareModal = ({ fileId, onClose }) => {
       });
       setShareResult(res.data);
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to create share link');
+      setError(err.response?.data?.message || 'Failed to initialize secure link session');
     } finally {
       setLoading(false);
     }
@@ -56,70 +55,80 @@ const ShareModal = ({ fileId, onClose }) => {
     if (!shareResult) return;
     const url = `${window.location.origin}/share/${shareResult.shareId}/${shareResult.token}`;
     navigator.clipboard.writeText(url);
-    alert('Secure link copied to clipboard!');
+    alert('Encrypted token URL copied to clipboard.');
   };
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-surface rounded-xl shadow-2xl w-full max-w-md border border-gray-700 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-700 flex justify-between items-center">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <LinkIcon className="w-5 h-5 text-primary" /> Secure Share
+    <div className="fixed inset-0 bg-background/85 backdrop-blur-sm flex items-center justify-center p-4 z-50 text-sm">
+      <div className="bg-surface rounded-md w-full max-w-md border border-border overflow-hidden">
+        <div className="px-4 py-3 border-b border-border bg-background flex justify-between items-center">
+          <h3 className="text-sm font-display font-semibold text-textMain flex items-center gap-2">
+            <LinkIcon className="w-4 h-4 text-primary" /> Issue Shared Access Token
           </h3>
-          <button onClick={onClose} className="text-textMuted hover:text-white transition-colors">
-            <X className="w-5 h-5" />
+          <button onClick={onClose} className="text-textMuted hover:text-textMain transition-colors">
+            <X className="w-4 h-4" />
           </button>
         </div>
 
-        <div className="p-6">
+        <div className="p-5">
           {shareResult ? (
             <div className="text-center">
-              <div className="bg-green-500/10 text-green-500 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-                <CheckCircle className="w-8 h-8" />
+              <div className="bg-safe/10 text-safe w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 border border-safe/30">
+                <CheckCircle className="w-6 h-6" />
               </div>
-              <h4 className="text-xl font-bold mb-2">Share Link Created</h4>
-              <p className="text-sm text-textMuted mb-6">Link expires in {durationMinutes} minutes.</p>
-              
-              <div className="flex items-center gap-2 bg-background p-3 rounded border border-gray-700 mb-6">
-                <input 
-                  type="text" 
-                  readOnly 
+              <h4 className="text-base font-display font-semibold text-textMain mb-1">Access Granted</h4>
+              <p className="text-xs text-textMuted mb-3">Token expires automatically in {durationMinutes} minute(s).</p>
+
+              {shareResult.emailSent ? (
+                <div className="bg-safe/10 border border-safe/30 text-safe p-2 rounded mb-4 flex items-center justify-center gap-2 text-xs">
+                  <Mail className="w-3.5 h-3.5" /> Token automatically dispatched to recipient email.
+                </div>
+              ) : (
+                <div className="bg-primary/10 border border-primary/30 text-primary-soft p-2 rounded mb-4 text-xs">
+                  Share record created, but email dispatch failed. Copy link manually below.
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 bg-background p-2 rounded border border-border mb-4">
+                <input
+                  type="text"
+                  readOnly
                   value={`${window.location.origin}/share/${shareResult.shareId}/${shareResult.token}`}
-                  className="bg-transparent w-full outline-none text-sm text-textMuted"
+                  className="bg-transparent w-full outline-none text-xs text-textMuted truncate font-mono"
                 />
-                <button onClick={copyLink} className="text-primary hover:text-primaryDark p-1">
-                  <Copy className="w-4 h-4" />
+                <button onClick={copyLink} className="text-primary hover:text-primary-soft p-1 transition-colors">
+                  <Copy className="w-3.5 h-3.5" />
                 </button>
               </div>
 
-              <button 
+              <button
                 onClick={onClose}
-                className="w-full bg-gray-800 hover:bg-gray-700 text-white font-medium py-2 rounded transition-colors"
+                className="w-full bg-background hover:bg-surface-hover text-textMain border border-border py-2 rounded transition-colors"
               >
-                Close
+                Dismiss
               </button>
             </div>
           ) : (
-            <form onSubmit={handleShare} className="space-y-4">
+            <form onSubmit={handleShare} className="space-y-3">
               {error && (
-                <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded text-sm">
+                <div className="bg-danger/10 border border-danger/30 text-danger-soft p-2.5 rounded text-xs">
                   {error}
                 </div>
               )}
-              
+
               <div>
-                <label className="block text-sm text-textMuted mb-1">Select Professor</label>
+                <label className="block text-textMuted text-xs mb-1">Recipient</label>
                 {loadingProfs ? (
-                  <div className="w-full bg-background border border-gray-700 rounded px-4 py-2 text-textMuted text-sm">
-                    Loading professors...
+                  <div className="w-full bg-background border border-border rounded px-3 py-2 text-textMuted text-xs">
+                    Looking up professors...
                   </div>
                 ) : professors.length === 0 ? (
-                  <div className="w-full bg-red-500/10 border border-red-500/50 rounded px-4 py-2 text-red-500 text-sm">
-                    No registered professors found. Please create a professor account first.
+                  <div className="w-full bg-danger/10 border border-danger/30 rounded px-3 py-2 text-danger-soft text-xs">
+                    No authorized recipients found.
                   </div>
                 ) : (
                   <select
-                    className="w-full bg-background border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain text-sm"
+                    className="w-full bg-background border border-border rounded px-3 py-2 text-textMain focus:outline-none focus:border-primary text-sm"
                     value={recipientId}
                     onChange={(e) => setRecipientId(e.target.value)}
                   >
@@ -133,23 +142,23 @@ const ShareModal = ({ fileId, onClose }) => {
               </div>
 
               <div>
-                <label className="block text-sm text-textMuted mb-1">[DEV ONLY] Manual Recipient UUID</label>
+                <label className="block text-textMuted text-xs mb-1">Explicit recipient UUID (optional)</label>
                 <input
                   type="text"
-                  placeholder="Paste UUID here..."
-                  className="w-full bg-background border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain text-sm"
+                  placeholder="Paste UUID directly..."
+                  className="w-full bg-background border border-border rounded px-3 py-2 text-textMain focus:outline-none focus:border-primary font-mono text-xs"
                   value={manualRecipientId}
                   onChange={(e) => setManualRecipientId(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-textMuted mb-1">Duration (Minutes)</label>
+                <label className="block text-textMuted text-xs mb-1">Expires after (minutes)</label>
                 <input
                   type="number"
                   min="1"
                   required
-                  className="w-full bg-background border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain"
+                  className="w-full bg-background border border-border rounded px-3 py-2 text-textMain focus:outline-none focus:border-primary text-sm"
                   value={durationMinutes}
                   onChange={(e) => setDurationMinutes(e.target.value)}
                 />
@@ -158,9 +167,10 @@ const ShareModal = ({ fileId, onClose }) => {
               <button
                 type="submit"
                 disabled={loading || (!recipientId && !manualRecipientId)}
-                className="w-full bg-primary hover:bg-primaryDark text-white font-medium py-2 rounded flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-6"
+                className="w-full bg-primary hover:bg-primaryDark text-background font-semibold py-2 rounded transition-colors disabled:opacity-50 mt-4 flex items-center justify-center gap-2"
               >
-                {loading ? 'Generating Secure Link...' : 'Generate Secure Link'}
+                <Mail className="w-3.5 h-3.5" />
+                {loading ? 'Dispatching...' : 'Generate & Dispatch Token'}
               </button>
             </form>
           )}

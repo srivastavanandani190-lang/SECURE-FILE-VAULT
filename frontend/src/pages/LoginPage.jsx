@@ -9,7 +9,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Student');
   const [error, setError] = useState('');
-  
+
   const { login, register } = useAuth();
   const navigate = useNavigate();
 
@@ -29,39 +29,50 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="bg-surface p-8 rounded-xl shadow-2xl w-full max-w-md border border-gray-800">
-        <div className="flex flex-col items-center mb-8">
-          <div className="bg-primary/10 p-4 rounded-full mb-4">
-            <Shield className="w-12 h-12 text-primary" />
+    <div className="min-h-screen flex items-center justify-center p-4 bg-background relative overflow-hidden">
+      {/* The one bold moment: a vault-dial motif behind the form */}
+      <div className="absolute inset-0 vault-rings pointer-events-none" />
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-[640px] h-[640px] rounded-full pointer-events-none"
+        style={{ border: '1px solid rgba(184,135,74,0.12)' }}
+      />
+      <div
+        className="absolute -top-32 left-1/2 -translate-x-1/2 w-[480px] h-[480px] rounded-full pointer-events-none"
+        style={{ border: '1px solid rgba(184,135,74,0.08)' }}
+      />
+
+      <div className="relative bg-surface p-8 rounded-md border border-border w-full max-w-md">
+        <div className="flex flex-col items-center mb-6 pb-6 border-b border-border">
+          <div className="bg-primary/10 p-3 rounded-full border border-primary/25 mb-4">
+            <Shield className="w-7 h-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold">Secure File Vault</h1>
-          <p className="text-textMuted text-sm mt-2">Zero-Trust Architecture</p>
+          <h1 className="text-xl font-display font-semibold tracking-tight text-textMain">Vault</h1>
+          <p className="text-sm text-textMuted mt-1">Sign in to your secure file exchange</p>
         </div>
 
         {error && (
-          <div className="bg-red-500/10 border border-red-500/50 text-red-500 p-3 rounded mb-4 text-sm">
+          <div className="bg-danger/10 border border-danger/30 text-danger-soft p-3 rounded mb-4 text-sm">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm text-textMuted mb-1">Email</label>
+            <label className="block text-sm text-textMuted mb-1.5">Email</label>
             <input
               type="email"
-              className="w-full bg-background border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain"
+              className="w-full bg-background border border-border rounded px-3 py-2.5 focus:outline-none focus:border-primary text-textMain text-sm transition-colors"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
             />
           </div>
-          
+
           <div>
-            <label className="block text-sm text-textMuted mb-1">Password</label>
+            <label className="block text-sm text-textMuted mb-1.5">Passphrase</label>
             <input
               type="password"
-              className="w-full bg-background border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain"
+              className="w-full bg-background border border-border rounded px-3 py-2.5 focus:outline-none focus:border-primary text-textMain text-sm transition-colors"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
@@ -70,9 +81,9 @@ const LoginPage = () => {
 
           {!isLogin && (
             <div>
-              <label className="block text-sm text-textMuted mb-1">Role</label>
+              <label className="block text-sm text-textMuted mb-1.5">Role</label>
               <select
-                className="w-full bg-background border border-gray-700 rounded px-4 py-2 focus:outline-none focus:border-primary text-textMain"
+                className="w-full bg-background border border-border rounded px-3 py-2.5 focus:outline-none focus:border-primary text-textMain text-sm"
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
@@ -84,22 +95,21 @@ const LoginPage = () => {
 
           <button
             type="submit"
-            className="w-full bg-primary hover:bg-primaryDark text-white font-medium py-2 rounded flex items-center justify-center gap-2 transition-colors"
+            className="w-full bg-primary hover:bg-primaryDark text-background font-semibold py-2.5 rounded flex items-center justify-center gap-2 transition-colors uppercase text-xs tracking-wide"
           >
             <Lock className="w-4 h-4" />
-            {isLogin ? 'Authenticate' : 'Initialize Identity'}
+            {isLogin ? 'Authenticate Identity' : 'Register New Key'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-textMuted mt-6">
-          {isLogin ? "Don't have an identity?" : "Already initialized?"}{' '}
+        <div className="mt-6 pt-5 border-t border-border text-center">
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="text-primary hover:underline"
+            className="text-sm text-textMuted hover:text-primary-soft transition-colors"
           >
-            {isLogin ? 'Register now' : 'Login here'}
+            {isLogin ? "Don't have access? Register" : 'Already have access? Sign in'}
           </button>
-        </p>
+        </div>
       </div>
     </div>
   );
