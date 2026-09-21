@@ -2,25 +2,23 @@ const { Share, File, User } = require('../models');
 const { generateToken, hashString, decryptBuffer } = require('../services/cryptoService');
 const { readFile } = require('../services/storageService');
 const logger = require('../services/auditService');
+const { sendTokenEmail } = require('../utils/sendEmail');
 const { Op } = require('sequelize');
 
 const createShare = async (req, res, next) => {
   try {
+    console.log('[DEBUG 1] Share request body received:', req.body);
     const { file_id, recipientId, recipientEmail, duration_hours = 24 } = req.body;
 
     if (!recipientId && !recipientEmail) {
+      console.log('[DEBUG ERROR] Missing recipient info');
       return res.status(400).json({ message: 'Recipient ID or Email is required' });
     }
 
-    // Verify ownership
     const file = await File.findOne({ where: { id: file_id, owner_id: req.user.id } });
+    console.log('[DEBUG 2] File found:', file ? file.id : 'NULL');
     if (!file) {
       return res.status(404).json({ message: 'File not found or unauthorized' });
-    }
-
-    // Determine recipient logic cleanly
-    if (!recipientId && !recipientEmail) {
-      return res.status(400).json({ message: 'Must provide either recipientId or recipientEmail' });
     }
 
     let recipient;
@@ -29,39 +27,54 @@ const createShare = async (req, res, next) => {
     } else {
       recipient = await User.findOne({ where: { email: recipientEmail } });
     }
+    console.log('[DEBUG 3] Recipient found:', recipient ? recipient.email : 'NULL');
 
     if (!recipient) {
       return res.status(404).json({ message: 'Recipient not found' });
     }
 
-    const recipient_id = recipient.id;
-
-    // Generate cryptographically secure random token
+    const sender = await User.findByPk(req.user.id);
     const rawToken = generateToken();
     const token_hash = await hashString(rawToken);
-    
     const expires_at = new Date(Date.now() + duration_hours * 60 * 60 * 1000);
 
     const share = await Share.create({
       file_id,
       shared_by: req.user.id,
-      recipient_id,
+      recipient_id: recipient.id,
       token_hash,
       expires_at
     });
+    console.log('[DEBUG 4] Share record created in DB. Invoking sendTokenEmail...');
 
-    logger.info('FILE_SHARED', {
-      userId: req.user.id,
-      details: { file_id, recipient_id, duration_hours, ipAddress: req.ip }
-    });
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const shareUrl = `${frontendBaseUrl}/share/${share.id}/${rawToken}`;
+    const fileName = file.original_name || file.originalName || 'Encrypted_Asset';
+
+    let emailSent = false;
+    try {
+      await sendTokenEmail({
+        toEmail: recipient.email,
+        shareUrl,
+        token: rawToken,
+        fileName,
+        senderEmail: sender ? sender.email : req.user.email
+      });
+      emailSent = true;
+      console.log('[DEBUG 5] sendTokenEmail resolved successfully');
+    } catch (emailErr) {
+      console.error('[DEBUG ERROR] sendTokenEmail threw an error:', emailErr);
+    }
 
     res.status(201).json({ 
-      message: 'Share link created securely', 
+      message: 'Share created', 
       shareId: share.id,
-      token: rawToken, // Return the plain token to be used in the URL link
+      token: rawToken,
+      emailSent,
       expires_at 
     });
   } catch (error) {
+    console.error('[DEBUG CATCH ERROR]:', error);
     next(error);
   }
 };
@@ -118,7 +131,8 @@ const downloadSharedFile = async (req, res, next) => {
 
     logger.info('FILE_ACCESSED', { userId: req.user.id, details: { file_id: file.id, ipAddress: req.ip } });
 
-    res.setHeader('Content-Disposition', `attachment; filename="${file.original_name}"`);
+    const downloadFileName = file.original_name || file.originalName || 'secure_file';
+    res.setHeader('Content-Disposition', `attachment; filename="${downloadFileName}"`);
     res.setHeader('Content-Type', 'application/octet-stream');
     res.send(plainBuffer);
 

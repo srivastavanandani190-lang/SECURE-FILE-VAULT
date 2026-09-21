@@ -1,6 +1,7 @@
 const { File, Share, User } = require('../models');
 const { encryptBuffer, generateFileHash, generateToken, hashString } = require('../services/cryptoService');
 const { saveFile } = require('../services/storageService');
+const { sendTokenEmail } = require('../utils/sendEmail');
 const logger = require('../services/auditService');
 const { v4: uuidv4 } = require('uuid');
 
@@ -45,6 +46,8 @@ const uploadFile = async (req, res, next) => {
     // Optional: Immediately share if recipientId is provided
     if (recipientId) {
       const recipient = await User.findByPk(recipientId);
+      const sender = await User.findByPk(req.user.id);
+
       if (recipient) {
         const rawToken = generateToken();
         const token_hash = await hashString(rawToken);
@@ -59,14 +62,37 @@ const uploadFile = async (req, res, next) => {
           expires_at
         });
 
+        // Build access URL
+        const frontendBaseUrl = process.env.FRONTEND_URL || `${req.protocol}://${req.get('host')}`;
+        const shareUrl = `${frontendBaseUrl}/share/${share.id}/${rawToken}`;
+
+        // Dispatch Email Notification
+        let emailSent = false;
+        try {
+          await sendTokenEmail({
+            toEmail: recipient.email,
+            shareUrl,
+            token: rawToken,
+            fileName: originalname || sanitizedName || 'Encrypted_Asset',
+            senderEmail: sender ? sender.email : req.user.email
+          });
+          emailSent = true;
+        } catch (emailErr) {
+          logger.error('EMAIL_DISPATCH_FAILED', {
+            userId: req.user.id,
+            details: { share_id: share.id, recipient_id: recipient.id, error: emailErr.message }
+          });
+        }
+
         logger.info('FILE_SHARED', {
           userId: req.user.id,
-          details: { file_id: fileId, recipient_id: recipient.id, duration_hours, ipAddress: req.ip }
+          details: { file_id: fileId, recipient_id: recipient.id, duration_hours, emailSent, ipAddress: req.ip }
         });
 
         shareData = {
           shareId: share.id,
           token: rawToken,
+          emailSent,
           expires_at
         };
       }
